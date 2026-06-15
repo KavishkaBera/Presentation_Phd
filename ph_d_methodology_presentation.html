@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ph.D. Research Presentation: Sea Turtle AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- GSAP for Advanced Step-by-Step Animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <!-- Leaflet for Real Interactive Maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        #visual-container { position: relative; width: 100%; height: 100%; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); overflow: hidden; border-radius: 0.75rem; box-shadow: inset 0 0 50px rgba(0,0,0,0.5); }
+        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 10; }
+        #leaflet-map { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 20; border-radius: 0.75rem; }
+        
+        .slide-transition { transition: all 0.5s ease-in-out; }
+        .fade-enter { opacity: 0; transform: translateY(10px); }
+        .fade-enter-active { opacity: 1; transform: translateY(0); }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Leaflet custom overrides */
+        .leaflet-tooltip.custom-tooltip {
+            background-color: #1e293b;
+            color: #2dd4bf;
+            border: 1px solid #0f766e;
+            font-weight: bold;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
+        }
+        .leaflet-tooltip-left.custom-tooltip::before { border-left-color: #0f766e; }
+        .leaflet-tooltip-right.custom-tooltip::before { border-right-color: #0f766e; }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-slate-900 border-b border-slate-700 p-4 flex justify-between items-center z-10 shrink-0">
+        <div>
+            <h1 class="text-xl font-bold text-teal-400"><i class="fa-solid fa-turtle mr-2"></i>Sea Turtle Habitat Risk Model</h1>
+            <p class="text-xs text-slate-400 mt-1">&copy; Kavishka Ekanayake</p>
+        </div>
+        <div class="flex items-center space-x-4">
+            <div class="text-right">
+                <span id="objective-badge" class="px-3 py-1 bg-teal-900/50 text-teal-300 text-xs font-semibold rounded-full border border-teal-700">Objective 1</span>
+            </div>
+            <div class="text-sm font-mono bg-slate-800 px-3 py-1 rounded text-slate-300">
+                Slide <span id="current-slide-num">1</span> / <span id="total-slides-num">29</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col lg:flex-row overflow-hidden relative p-4 gap-4">
+        
+        <!-- Visualization Panel (Canvas + Leaflet) -->
+        <div class="flex-1 h-full min-h-[50vh] relative border border-slate-700 rounded-xl overflow-hidden shadow-2xl flex flex-col">
+            <div id="visual-container">
+                <div id="leaflet-map" class="hidden"></div>
+                <canvas id="animCanvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Information Panel -->
+        <div class="w-full lg:w-1/3 bg-slate-800 border border-slate-700 rounded-xl shadow-2xl flex flex-col h-full overflow-hidden shrink-0">
+            <div class="p-5 border-b border-slate-700 bg-slate-800/80 backdrop-blur shrink-0">
+                <h2 id="activity-title" class="text-2xl font-bold text-white leading-tight slide-transition">1. Selection of nesting rookeries</h2>
+                <div id="activity-phase" class="text-sm text-teal-400 mt-2 font-medium slide-transition"><i class="fa-solid fa-location-dot mr-1"></i> Fieldwork & Preparation</div>
+            </div>
+            
+            <div class="p-5 overflow-y-auto flex-1 slide-transition" id="activity-details">
+                <div class="mb-6">
+                    <h3 class="text-sm uppercase tracking-wider text-slate-400 font-bold mb-2"><i class="fa-solid fa-microscope mr-1"></i> Method</h3>
+                    <p id="activity-method" class="text-slate-300 leading-relaxed text-sm">Five nesting rookeries will be selected based on nesting importance, field access, erosion exposure, available historical records, permissions and long-term monitoring feasibility.</p>
+                </div>
+                
+                <div class="mb-4">
+                    <h3 class="text-sm uppercase tracking-wider text-slate-400 font-bold mb-2"><i class="fa-solid fa-toolbox mr-1"></i> Equipment / Data</h3>
+                    <div id="activity-equip" class="flex flex-wrap gap-2 text-sm">
+                        <!-- Tags injected via JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Controls -->
+            <div class="p-4 border-t border-slate-700 bg-slate-900 shrink-0">
+                <!-- Progress Bar -->
+                <div class="w-full bg-slate-700 rounded-full h-1.5 mb-4">
+                    <div id="progress-bar" class="bg-teal-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                </div>
+                
+                <div class="flex justify-between items-center">
+                    <button id="btn-prev" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded transition disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-chevron-left mr-1"></i> Prev
+                    </button>
+                    <button id="btn-replay" class="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-teal-400 rounded transition" title="Replay Animation">
+                        <i class="fa-solid fa-rotate-right"></i>
+                    </button>
+                    <button id="btn-next" class="px-6 py-2 bg-teal-600 hover:bg-teal-500 text-white font-bold rounded shadow-lg shadow-teal-900/50 transition disabled:opacity-50">
+                        Next Activity <i class="fa-solid fa-chevron-right ml-1"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- DATA STRUCTURE (Reordered & Added Slide) ---
+        const activities = [
+            { obj: "Objectives 1 & 2", phase: "Fieldwork Setup", title: "1. Selection of nesting rookeries", method: "Five nesting rookeries will be selected based on nesting importance, field access, erosion exposure, available historical records, permissions and long-term monitoring feasibility.", equip: ["Real Map", "Coastal GIS", "Permissions"], scene: "map" },
+            { obj: "Objectives 1 & 2", phase: "Fieldwork Setup", title: "2. Division into fixed sectors", method: "Each selected nesting beach will be divided into fixed beach sectors or transects. These fixed units will allow repeated measurements across seasons and years.", equip: ["GPS device", "Measuring tape", "Beach markers"], scene: "beach_top", action: "draw_transects" },
+            { obj: "Objectives 1 & 2", phase: "Data Collection", title: "3. Recording of nest-site selection data", method: "The location and placement condition of each nest will be recorded to understand how turtles select nesting sites across different beach sectors.", equip: ["GPS device", "Camera", "GIS base map"], scene: "beach_top", action: "place_nests" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "4. Measurement of beach width", method: "Beach width will be measured from the vegetation line or backshore boundary to the high tide line or active shoreline.", equip: ["Measuring tape", "GPS device"], scene: "beach_side", action: "width" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "5. Measurement of beach slope", method: "Beach slope will be measured along fixed transects from the upper beach toward the lower beach.", equip: ["Clinometer", "Measuring tape", "Ranging poles"], scene: "beach_side", action: "slope" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "6. Measurement of beach elevation", method: "Elevation changes will be recorded along each transect to understand beach profile variation over time.", equip: ["Clinometer", "Handheld GPS"], scene: "beach_side", action: "elevation" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "7. Elevation vs. Slope Analysis", method: "Understanding the difference: Elevation measures absolute vertical height above sea level, whereas Slope measures the gradient (angle) of the beach surface.", equip: ["Comparative Analysis", "Profile Data"], scene: "beach_side", action: "elev_vs_slope" }, // NEW SLIDE
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "8. Mapping of shoreline position", method: "Shoreline or high tide line positions will be recorded during each field visit and compared across seasons. Historical positions analyzed using DSAS.", equip: ["GPS device", "GIS software", "ArcGIS"], scene: "beach_side", action: "shoreline" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "9. Assessment of vegetation cover", method: "Vegetation cover will be recorded within each beach sector, including distance from vegetation line and approximate percentage cover.", equip: ["Quadrat frame", "Measuring tape"], scene: "beach_side", action: "vegetation" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "10. Monitoring of sand temperature", method: "Sand temperature will be recorded at selected nesting depths and beach sectors to identify thermal suitability.", equip: ["Temperature data loggers", "Soil thermometer"], scene: "beach_side", action: "temperature" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "11. Collection of rainfall and monsoon data", method: "Rainfall and monsoon-related data will be collected from field observations and available meteorological records.", equip: ["Meteorology records", "Rainfall data"], scene: "beach_side", action: "rainfall" },
+            { obj: "Objectives 1 & 2", phase: "Core Variables", title: "12. Measurement of nest depth", method: "Nest depth will be recorded only when permitted and without unnecessary disturbance to eggs or hatchlings.", equip: ["Measuring tape", "Gloves"], scene: "beach_side", action: "depth" },
+            { obj: "Objectives 1 & 2", phase: "Data Processing", title: "13. Compilation of the nest sample", method: "A sample of approximately 500 recorded nests will be compiled from selected nesting rookeries, hatchery records and field monitoring records.", equip: ["Datasheets", "Google Sheets", "Laptop"], scene: "data_flow", action: "compile_sample" }, // MOVED SLIDE
+            { obj: "Objectives 1 & 2", phase: "Analysis Prep", title: "14. Calculation of nesting density", method: "Nesting density will be calculated by counting the number of nests recorded within each beach sector or transect during each monitoring period.", equip: ["GPS records", "Python", "GIS software"], scene: "beach_top", action: "density" },
+            { obj: "Objectives 1 & 2", phase: "Analysis Prep", title: "15. Linking habitats with variables", method: "Each recorded nest will be linked with the nine core variables: width, slope, elevation, shoreline, vegetation, temp, rain, depth, and location.", equip: ["Database", "Data linking"], scene: "data_flow", action: "link_vars" },
+            { obj: "Objectives 1 & 2", phase: "Outcomes", title: "16. Recording emergence success & nest fate", method: "Emergence success and final nest fate recorded. Fate classified as successful, eroded, inundated, overheated, predated or disturbed.", equip: ["Hatchery records", "Field notebook"], scene: "beach_side", action: "hatchlings" },
+            { obj: "Objectives 1 & 2", phase: "Analysis Prep", title: "17. Statistical analysis of variable effects", method: "Statistical models (GLM, GLMM, correlation) will be used to test how the 9 biophysical variables influence nest-site selection and hatching success.", equip: ["Python", "Power BI"], scene: "charts", action: "stats" },
+            { obj: "Objective 3", phase: "GIS & Database", title: "18. Preparation of GIS sector database", method: "Fixed beach sectors converted into digital spatial layers. Each sector will have a unique ID, boundary, and season/date info.", equip: ["ArcGIS", "Spatial DB"], scene: "gis_layers", action: "base" },
+            { obj: "Objective 3", phase: "GIS & Database", title: "19. Integration of secondary variables", method: "Secondary variables (historical records, tides, storm records, satellite images) linked with each beach sector.", equip: ["Satellite Data", "Historical logs"], scene: "gis_layers", action: "secondary" },
+            { obj: "Objective 3", phase: "GIS & Database", title: "20. Development of current risk-zone layer", method: "A date-based risk layer generated. Interface shows current low-risk, moderate-risk and high-risk zones.", equip: ["GIS Spatial Analysis"], scene: "gis_layers", action: "risk" },
+            { obj: "Objective 3", phase: "AI Development", title: "21. Preparation of MLP model dataset", method: "The 9 core variables combined with GIS-derived and secondary variables representing nest locations or beach sectors with associated risk.", equip: ["Python DataFrames", "Preprocessing"], scene: "data_flow", action: "matrix" },
+            { obj: "Objective 3", phase: "AI Development", title: "22. Development of MLP Habitat Risk Model", method: "A Multi-Layer Perceptron trained to predict habitat-risk score, hatching success probability and location suitability.", equip: ["Python", "Neural Networks"], scene: "ai_net", action: "train" },
+            { obj: "Objective 3", phase: "AI Development", title: "23. Model validation & performance", method: "Model tested using season-based, site-based and spatial-block validation. Performance assessed using accuracy, F1-score, AUC.", equip: ["Validation metrics"], scene: "ai_net", action: "validate" },
+            { obj: "Objective 3", phase: "Decision Support", title: "24. Closest suitable location finder", method: "If a nest is in a high-risk zone, the system searches nearby sectors to identify the closest suitable relocation zone based on thermal suitability and risk score.", equip: ["Pathfinding Algorithms"], scene: "beach_top", action: "relocate" },
+            { obj: "Objective 3", phase: "Software Dev", title: "25. Backend API development", method: "API developed to receive user variables, connect with risk layers, run the saved model and return predictions to the website.", equip: ["REST API", "Python Flask/FastAPI"], scene: "tech", action: "api" },
+            { obj: "Objective 3", phase: "Software Dev", title: "26. 3D graphical user interface", method: "Web-based 3D interface developed to show beach sectors, current risk zones, shoreline movement, and suggested relocation areas.", equip: ["WebGL / Three.js", "React/HTML"], scene: "tech", action: "3d" },
+            { obj: "Objective 3", phase: "Software Dev", title: "27. Dashboard & result visualization", method: "Prediction results presented using maps, risk colors, charts and summary panels.", equip: ["Power BI", "Web Dashboards"], scene: "tech", action: "dashboard" },
+            { obj: "Objective 3", phase: "Software Dev", title: "28. Software testing & validation", method: "Tested using unit testing, API testing, model testing, GIS-data validation, UI testing, stress testing and security testing.", equip: ["Automated Testing Suites"], scene: "tech", action: "testing" },
+            { obj: "Objective 4", phase: "Conservation Impact", title: "29. Expert Validation & Field Application", method: "The tool will be used by conservation officers, hatchery managers, and experts in real-world scenarios. Their feedback enhances the framework to achieve a 40% increase in hatchling survival.", equip: ["Field Deployment", "User Feedback"], scene: "tech", action: "deployment" }
+        ];
+
+        // --- STATE & GSAP ANIMATION MANAGEMENT ---
+        let currentSlide = 0;
+        let globalTime = 0;
+        let particles = [];
+        let reqAnimFrameId;
+        let leafletMap = null;
+        
+        // This object holds all properties animated by GSAP
+        let animState = {
+            p1: 0, p2: 0, p3: 0, p4: 0, p5: 0,
+            alpha: 0, scale: 0, spread: 0
+        };
+        let tl = null; // GSAP Timeline
+
+        // UI Elements
+        const elTitle = document.getElementById('activity-title');
+        const elMethod = document.getElementById('activity-method');
+        const elEquip = document.getElementById('activity-equip');
+        const elPhase = document.getElementById('activity-phase');
+        const elBadge = document.getElementById('objective-badge');
+        const elCurrSlide = document.getElementById('current-slide-num');
+        const elTotalSlides = document.getElementById('total-slides-num');
+        const elProgress = document.getElementById('progress-bar');
+        
+        const canvas = document.getElementById('animCanvas');
+        const ctx = canvas.getContext('2d');
+        const mapContainer = document.getElementById('leaflet-map');
+        elTotalSlides.innerText = activities.length;
+
+        // --- INITIALIZE LEAFLET MAP ---
+        function initLeafletMap() {
+            // Centered on Sri Lanka
+            leafletMap = L.map('leaflet-map', { zoomControl: false }).setView([7.8731, 80.7718], 7);
+            
+            // Dark map theme (CartoDB Dark Matter)
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap contributors',
+                subdomains: 'abcd',
+                maxZoom: 19
+            }).addTo(leafletMap);
+            
+            // Custom Pulse Icon styling
+            const createPulseIcon = (color) => {
+                return L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; box-shadow: 0 0 0 0 rgba(45, 212, 191, 1); animation: pulse 2s infinite;"></div>
+                           <style>@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(45, 212, 191, 0); } 100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); } }</style>`,
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                });
+            };
+
+            // Markers for Rookeries
+            L.marker([6.3054, 80.0343], {icon: createPulseIcon('#2dd4bf')}).addTo(leafletMap)
+             .bindTooltip("Kosgoda Rookery", {permanent: true, direction: 'right', className: 'custom-tooltip'});
+            L.marker([6.0463, 80.8447], {icon: createPulseIcon('#2dd4bf')}).addTo(leafletMap)
+             .bindTooltip("Rekawa Rookery", {permanent: true, direction: 'right', className: 'custom-tooltip'});
+        }
+
+        // --- CORE LOGIC ---
+        function updateUI() {
+            const data = activities[currentSlide];
+            
+            // Handle Leaflet vs Canvas visibility
+            if (data.scene === "map") {
+                mapContainer.classList.remove('hidden');
+                if(!leafletMap) initLeafletMap();
+                setTimeout(() => leafletMap.invalidateSize(), 100); // Fix rendering after unhide
+            } else {
+                mapContainer.classList.add('hidden');
+            }
+
+            // Text updates
+            elTitle.classList.add('opacity-0');
+            elMethod.parentElement.classList.add('opacity-0');
+            
+            setTimeout(() => {
+                elTitle.innerText = data.title;
+                elMethod.innerText = data.method;
+                elPhase.innerHTML = `<i class="fa-solid fa-layer-group mr-1"></i> ${data.phase}`;
+                elBadge.innerText = data.obj;
+                elCurrSlide.innerText = currentSlide + 1;
+                
+                if(data.obj.includes("1")) elBadge.className = "px-3 py-1 bg-teal-900/50 text-teal-300 text-xs font-semibold rounded-full border border-teal-700";
+                else if(data.obj.includes("3")) elBadge.className = "px-3 py-1 bg-indigo-900/50 text-indigo-300 text-xs font-semibold rounded-full border border-indigo-700";
+                else elBadge.className = "px-3 py-1 bg-emerald-900/50 text-emerald-300 text-xs font-semibold rounded-full border border-emerald-700";
+                
+                elEquip.innerHTML = data.equip.map(eq => `<span class="px-2 py-1 bg-slate-700 text-slate-300 rounded border border-slate-600 shadow-sm"><i class="fa-solid fa-check text-teal-500 mr-1 text-xs"></i>${eq}</span>`).join('');
+                
+                elTitle.classList.remove('opacity-0');
+                elMethod.parentElement.classList.remove('opacity-0');
+            }, 200);
+
+            elProgress.style.width = `${((currentSlide + 1) / activities.length) * 100}%`;
+            document.getElementById('btn-prev').disabled = currentSlide === 0;
+            document.getElementById('btn-next').disabled = currentSlide === activities.length - 1;
+
+            if (data.scene !== "map") {
+                triggerGSAPSequences(data.scene, data.action);
+            } else {
+                if(tl) tl.kill(); // Pause canvas anims if on map
+            }
+        }
+
+        // --- STEP-BY-STEP GSAP SEQUENCER ---
+        function triggerGSAPSequences(scene, action) {
+            if(tl) tl.kill();
+            animState = { p1: 0, p2: 0, p3: 0, p4: 0, p5: 0, alpha: 0, scale: 0, spread: 0 };
+            particles = [];
+            resizeCanvas();
+            
+            tl = gsap.timeline();
+
+            if (action === "width") {
+                tl.to(animState, { p1: 1, duration: 1, ease: "bounce.out" })
+                  .to(animState, { p2: 1, duration: 1, ease: "bounce.out" }, "+=0.2")
+                  .to(animState, { p3: 1, duration: 1.5, ease: "power2.inOut" }, "+=0.2");
+            } 
+            else if (action === "slope") {
+                tl.to(animState, { p1: 1, duration: 1, ease: "power2.out" })
+                  .to(animState, { p2: 1, duration: 1, ease: "power2.inOut" }, "+=0.2")
+                  .to(animState, { p3: 1, duration: 1, ease: "power2.inOut" })
+                  .to(animState, { p4: 1, duration: 1, ease: "power2.out" });
+            }
+            else if (action === "elevation") {
+                tl.to(animState, { p1: 1, duration: 1, ease: "power2.out" })
+                  .to(animState, { p2: 1, duration: 1, ease: "bounce.out" }, "+=0.2")
+                  .to(animState, { p3: 1, duration: 1, ease: "power2.inOut" }, "+=0.2");
+            }
+            else if (action === "elev_vs_slope") {
+                // Sequence for new comparison slide
+                tl.to(animState, { p1: 1, duration: 1, ease: "power2.inOut" }) // Show Elevation
+                  .to(animState, { p2: 1, duration: 1.5, ease: "power2.inOut" }, "+=0.5") // Show Slope 
+                  .to(animState, { p3: 1, duration: 0.5 }); // Show text boxes
+            }
+            else if (action === "depth") {
+                tl.to(animState, { p1: 1, duration: 1.5, ease: "power2.inOut" })
+                  .to(animState, { p2: 1, duration: 1 }, "+=0.2")
+                  .to(animState, { p3: 1, duration: 1, ease: "power2.out" });
+            }
+            else if (action === "temperature") {
+                tl.to(animState, { p1: 1, duration: 0.8, ease: "back.out(1.7)" })
+                  .to(animState, { p2: 1, duration: 1, ease: "power2.out" }, "+=0.2")
+                  .to(animState, { p3: 1, duration: 0.5 }, "+=0.2")
+                  .to(animState, { p4: 1, duration: 1, ease: "elastic.out(1, 0.5)" });
+            }
+            else if (action === "vegetation") {
+                tl.to(animState, { p1: 1, duration: 1, ease: "power2.out" })
+                  .to(animState, { p2: 1, duration: 1, ease: "power2.inOut" })
+                  .to(animState, { p3: 1, duration: 0.5 });
+            }
+            else if (action === "shoreline") {
+                tl.to(animState, { p1: 1, duration: 1, ease: "power2.inOut" })
+                  .to(animState, { p2: 1, duration: 1, ease: "power2.out" })
+                  .to(animState, { p3: 1, duration: 0.5 });
+            }
+            else if (scene === "gis_layers") {
+                tl.to(animState, { spread: 1, duration: 2, ease: "power3.inOut" });
+                if (action === "risk") {
+                    tl.to(animState, { p1: 1, duration: 1, ease: "power2.out" }, "-=0.5");
+                }
+            }
+            else if (action === "draw_transects") {
+                tl.to(animState, { p1: 1, duration: 2, ease: "power1.inOut" });
+            }
+            else if (action === "place_nests") {
+                tl.to(animState, { p1: 1, duration: 2, ease: "power2.out" });
+            }
+            else if (scene === "ai_net") {
+                tl.to(animState, { p1: 1, duration: 1 })
+                  .to(animState, { p2: 1, duration: 1.5, ease: "power2.inOut" })
+                  .to(animState, { p3: 1, duration: 0.5 });
+            }
+            else if (action === "relocate") {
+                tl.to(animState, { p1: 1, duration: 1, ease: "power2.out" })
+                  .to(animState, { p2: 1, duration: 2, ease: "power2.inOut" }, "+=0.5");
+            }
+            else {
+                tl.to(animState, { alpha: 1, duration: 1 });
+            }
+        }
+
+        document.getElementById('btn-prev').addEventListener('click', () => { if (currentSlide > 0) { currentSlide--; updateUI(); } });
+        document.getElementById('btn-next').addEventListener('click', () => { if (currentSlide < activities.length - 1) { currentSlide++; updateUI(); } });
+        document.getElementById('btn-replay').addEventListener('click', () => { updateUI(); });
+
+        // --- CANVAS RENDERING ENGINE ---
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function drawLoop() {
+            globalTime++;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const data = activities[currentSlide];
+            
+            // Only draw canvas if we aren't showing the Leaflet map
+            if (data.scene !== "map") {
+                ctx.save();
+                if (data.scene === "beach_top") drawBeachTop(data.action);
+                else if (data.scene === "beach_side") drawBeachSide(data.action);
+                else if (data.scene === "data_flow" || data.scene === "charts") drawDataFlow(data.action, data.scene);
+                else if (data.scene === "gis_layers") drawGISLayers(data.action);
+                else if (data.scene === "ai_net") drawAINet(data.action);
+                else if (data.scene === "tech") drawTech(data.action);
+                ctx.restore();
+            }
+            
+            reqAnimFrameId = requestAnimationFrame(drawLoop);
+        }
+
+        // --- RENDERING HELPERS ---
+        function drawTechGrid(w, h) {
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.05)"; ctx.lineWidth = 1;
+            for(let x=0; x<w; x+=40) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+            for(let y=0; y<h; y+=40) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+            ctx.strokeStyle = "rgba(148, 163, 184, 0.2)"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(20, h-20); ctx.lineTo(w, h-20); ctx.stroke(); 
+            ctx.beginPath(); ctx.moveTo(20, h-20); ctx.lineTo(20, 0); ctx.stroke(); 
+        }
+
+        // Draw text with a dark semi-transparent background to prevent overlapping/clashing
+        function drawLabel(text, x, y, color = "#fff", bgColor = "rgba(15, 23, 42, 0.8)", align="center") {
+            ctx.save();
+            ctx.font = "bold 12px monospace";
+            ctx.textAlign = align;
+            ctx.textBaseline = "middle";
+            
+            const metrics = ctx.measureText(text);
+            const padding = 6;
+            const w = metrics.width + padding * 2;
+            const h = 20; // approximate height
+            
+            let rectX = x - w/2;
+            if (align === "left") rectX = x;
+            if (align === "right") rectX = x - w;
+            
+            ctx.fillStyle = bgColor;
+            ctx.beginPath(); ctx.roundRect(rectX, y - h/2, w, h, 4); ctx.fill();
+            
+            ctx.fillStyle = color;
+            ctx.fillText(text, x, y);
+            ctx.restore();
+        }
+
+        // Advanced animated dimension line with backdrop text
+        function drawAnimatedDimLine(x1, y1, x2, y2, label, offset = 0, progress = 1, showLabelProgress = 1) {
+            if (progress <= 0) return;
+            const angle = Math.atan2(y2-y1, x2-x1);
+            const perp = angle + Math.PI/2;
+            const px1 = x1 + Math.cos(perp)*offset;
+            const py1 = y1 + Math.sin(perp)*offset;
+            const curX2 = px1 + (x2 + Math.cos(perp)*offset - px1) * progress;
+            const curY2 = py1 + (y2 + Math.sin(perp)*offset - py1) * progress;
+            const fullPx2 = x2 + Math.cos(perp)*offset;
+            const fullPy2 = y2 + Math.sin(perp)*offset;
+
+            ctx.globalAlpha = Math.min(1, progress * 2);
+            ctx.strokeStyle = "rgba(251, 191, 36, 0.5)"; ctx.lineWidth = 1; ctx.setLineDash([2, 2]);
+            ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(px1, py1); ctx.stroke();
+            if (progress > 0.9) { ctx.beginPath(); ctx.moveTo(x2, y2); ctx.lineTo(fullPx2, fullPy2); ctx.stroke(); }
+            ctx.setLineDash([]); ctx.globalAlpha = 1;
+
+            ctx.strokeStyle = "#fbbf24"; ctx.fillStyle = "#fbbf24"; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(px1, py1); ctx.lineTo(curX2, curY2); ctx.stroke();
+
+            const arrLen = 8;
+            ctx.beginPath(); ctx.moveTo(px1, py1); ctx.lineTo(px1+arrLen*Math.cos(angle-Math.PI/6), py1+arrLen*Math.sin(angle-Math.PI/6)); ctx.lineTo(px1+arrLen*Math.cos(angle+Math.PI/6), py1+arrLen*Math.sin(angle+Math.PI/6)); ctx.fill();
+            if (progress >= 1) {
+                ctx.beginPath(); ctx.moveTo(fullPx2, fullPy2); ctx.lineTo(fullPx2-arrLen*Math.cos(angle-Math.PI/6), fullPy2-arrLen*Math.sin(angle-Math.PI/6)); ctx.lineTo(fullPx2-arrLen*Math.cos(angle+Math.PI/6), fullPy2-arrLen*Math.sin(angle+Math.PI/6)); ctx.fill();
+            }
+
+            if (showLabelProgress > 0) {
+                ctx.save();
+                ctx.globalAlpha = showLabelProgress;
+                const midX = (px1+fullPx2)/2; const midY = (py1+fullPy2)/2;
+                // Offset text slightly so it doesn't overlap the line
+                drawLabel(label, midX, midY - 12, "#fbbf24", "rgba(15, 23, 42, 0.85)");
+                ctx.restore();
+            }
+        }
+
+        // --- SPECIFIC SCENE RENDERERS ---
+
+        function drawBeachTop(action) {
+            const w = canvas.width; const h = canvas.height;
+            drawTechGrid(w, h);
+            
+            ctx.fillStyle = "rgba(34, 197, 94, 0.1)"; ctx.fillRect(20, 0, w*0.1, h-20); 
+            ctx.fillStyle = "rgba(245, 158, 11, 0.1)"; ctx.fillRect(20 + w*0.1, 0, w*0.5, h-20); 
+            ctx.fillStyle = "rgba(14, 165, 233, 0.1)"; ctx.fillRect(20 + w*0.6, 0, w*0.4-20, h-20); 
+            
+            ctx.strokeStyle = "#4ade80"; ctx.setLineDash([5,5]); ctx.beginPath(); ctx.moveTo(20+w*0.1, 0); ctx.lineTo(20+w*0.1, h-20); ctx.stroke();
+            ctx.strokeStyle = "#38bdf8"; ctx.beginPath(); ctx.moveTo(20+w*0.6, 0); ctx.lineTo(20+w*0.6, h-20); ctx.stroke(); ctx.setLineDash([]);
+
+            if(action === "draw_transects" || action !== "draw_transects") {
+                const prog = action === "draw_transects" ? animState.p1 : 1;
+                if (prog > 0) {
+                    ctx.strokeStyle = "rgba(255,255,255,0.3)"; ctx.lineWidth = 1;
+                    for(let y=(h-20)*0.2; y<h-20; y+=(h-20)*0.2) {
+                        ctx.beginPath(); ctx.moveTo(20+w*0.1, y); ctx.lineTo(20+w*0.1 + (w*0.5)*prog, y); ctx.stroke();
+                        if (prog > 0.8) {
+                            ctx.globalAlpha = (prog-0.8)*5;
+                            drawLabel(`Transect T${Math.round(y/50)}`, 30+w*0.1, y, "#cbd5e1", "rgba(15,23,42,0.6)", "left");
+                            ctx.globalAlpha = 1;
+                        }
+                    }
+                }
+            }
+
+            if(["place_nests", "density", "relocate"].includes(action)) {
+                if(particles.length === 0) {
+                    for(let i=0; i<30; i++) particles.push({ x: 20 + w*0.1 + Math.random()*w*0.45, y: Math.random()*(h-20), risk: Math.random()>0.7?'high':'low' });
+                }
+
+                const nodeProg = action === "place_nests" ? animState.p1 : 1;
+                const nodesToShow = Math.floor(particles.length * nodeProg);
+
+                if(action === "density") {
+                    ctx.fillStyle = "rgba(239, 68, 68, 0.2)"; ctx.fillRect(20 + w*0.4, (h-20)*0.2, w*0.2, (h-20)*0.4); 
+                    ctx.strokeStyle = "#ef4444"; ctx.strokeRect(20 + w*0.4, (h-20)*0.2, w*0.2, (h-20)*0.4);
+                    drawLabel("HIGH DENSITY CLUSTER", 20 + w*0.5, (h-20)*0.2 + 15, "#ef4444");
+                } 
+                else if(action === "relocate") {
+                    const p = particles[0]; p.x = 20 + w*0.55; p.y = (h-20)*0.5;
+                    const targetX = 20 + w*0.2; const targetY = (h-20)*0.3;
+                    
+                    ctx.globalAlpha = animState.p1;
+                    ctx.fillStyle = "rgba(239, 68, 68, 0.1)"; ctx.fillRect(20+w*0.4, 0, w*0.2, h-20);
+                    ctx.fillStyle = "rgba(34, 197, 94, 0.1)"; ctx.fillRect(20+w*0.1, 0, w*0.3, h-20);
+                    ctx.globalAlpha = 1;
+
+                    if (animState.p2 > 0) {
+                        ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + (targetX-p.x)*animState.p2, p.y + (targetY-p.y)*animState.p2);
+                        ctx.setLineDash([4,4]); ctx.strokeStyle = "#facc15"; ctx.lineWidth = 2; ctx.stroke(); ctx.setLineDash([]);
+                        ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(p.x + (targetX-p.x)*animState.p2, p.y + (targetY-p.y)*animState.p2, 5, 0, Math.PI*2); ctx.fill();
+                    }
+                }
+
+                for(let i=0; i<nodesToShow; i++) {
+                    const p = particles[i];
+                    ctx.fillStyle = action === "relocate" && p.risk === 'high' ? "#ef4444" : "#e2e8f0";
+                    ctx.fillRect(p.x-2, p.y-2, 4, 4); 
+                }
+            }
+        }
+
+        function drawBeachSide(action) {
+            const w = canvas.width; const h = canvas.height;
+            drawTechGrid(w, h);
+            
+            const getProfileY = (x) => {
+                let morph = (action === "depth") ? animState.p1 : 0;
+                if(x < w*0.2) return h*0.4;
+                if(x > w*0.7) return h*0.8;
+                let base = h*0.4 + ((x - w*0.2)/(w*0.5)) * (h*0.4);
+                if (morph > 0 && Math.abs(x - w*0.4) < 30) {
+                    const depth = 80 * morph;
+                    return base + Math.cos((x - w*0.4) / 30 * Math.PI/2) * depth;
+                }
+                return base;
+            };
+
+            ctx.beginPath(); ctx.moveTo(20, h-20); ctx.lineTo(20, getProfileY(20));
+            for(let x=20; x<=w; x+=5) { ctx.lineTo(x, getProfileY(x)); }
+            ctx.lineTo(w, h-20); ctx.closePath();
+            ctx.fillStyle = "rgba(180, 83, 9, 0.2)"; ctx.fill();
+            ctx.strokeStyle = "#b45309"; ctx.lineWidth = 2; ctx.stroke();
+
+            const msl = h*0.75;
+            ctx.beginPath(); ctx.moveTo(w*0.63, msl); ctx.lineTo(w, msl);
+            ctx.strokeStyle = "rgba(14, 165, 233, 0.8)"; ctx.stroke();
+            ctx.fillStyle = "rgba(14, 165, 233, 0.2)"; ctx.fillRect(w*0.63, msl, w, h-20-msl);
+
+            if(action === "width") {
+                const vegX = w*0.2; const tideX = w*0.63;
+                if (animState.p1 > 0) {
+                    ctx.setLineDash([4,4]); ctx.strokeStyle="#4ade80";
+                    ctx.beginPath(); ctx.moveTo(vegX, getProfileY(vegX)); ctx.lineTo(vegX, getProfileY(vegX) - 80 * animState.p1); ctx.stroke();
+                    if (animState.p1 > 0.8) drawLabel("Vegetation Line", vegX, getProfileY(vegX)-85, "#4ade80");
+                }
+                if (animState.p2 > 0) {
+                    ctx.strokeStyle="#38bdf8";
+                    ctx.beginPath(); ctx.moveTo(tideX, msl); ctx.lineTo(tideX, getProfileY(vegX) - 80 * animState.p2); ctx.stroke();
+                    if (animState.p2 > 0.8) drawLabel("High Tide Line", tideX, getProfileY(vegX)-85, "#38bdf8");
+                }
+                ctx.setLineDash([]);
+                drawAnimatedDimLine(vegX, getProfileY(vegX), tideX, getProfileY(vegX), "Beach Width (W)", -60, animState.p3, animState.p3);
+            }
+            else if (action === "slope") {
+                const x1 = w*0.3; const y1 = getProfileY(x1);
+                const x2 = w*0.5; const y2 = getProfileY(x2);
+                
+                if (animState.p1 > 0) {
+                    ctx.fillStyle = "#ef4444"; 
+                    ctx.fillRect(x2-2, y2 - 80 * animState.p1, 4, 80 * animState.p1); 
+                    ctx.fillRect(x1-2, y1 - 80 * animState.p1, 4, 80 * animState.p1);
+                }
+                if (animState.p2 > 0) drawAnimatedDimLine(x1, y1, x2, y1, "Run (dx)", 20, animState.p2, animState.p2);
+                if (animState.p3 > 0) drawAnimatedDimLine(x2, y1, x2, y2, "Rise (dy)", 20, animState.p3, animState.p3);
+                if (animState.p4 > 0) {
+                    ctx.strokeStyle = "#38bdf8"; ctx.lineWidth=2;
+                    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 + (x2-x1)*animState.p4, y1 + (y2-y1)*animState.p4); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(x1, y1, 40 * animState.p4, 0, Math.atan2(y2-y1, x2-x1)); ctx.stroke();
+                    if (animState.p4 > 0.8) drawLabel("θ = tan⁻¹(dy/dx)", x1+50, y1+15, "#fff");
+                }
+            }
+            else if (action === "elevation") {
+                const px = w*0.4; const py = getProfileY(px);
+                if (animState.p1 > 0) {
+                    ctx.strokeStyle = "rgba(14, 165, 233, 0.5)"; ctx.setLineDash([5,5]);
+                    ctx.beginPath(); ctx.moveTo(w - (w-20)*animState.p1, msl); ctx.lineTo(w, msl); ctx.stroke();
+                    if(animState.p1 > 0.8) drawLabel("Mean Sea Level (MSL = 0.0m)", w*0.7, msl-15, "#38bdf8");
+                    ctx.setLineDash([]);
+                }
+                if (animState.p2 > 0) {
+                    const dropY = py - 200 + 100 * animState.p2;
+                    ctx.fillStyle = "#fff"; ctx.fillRect(px-2, dropY, 4, 100);
+                    ctx.fillStyle = "#eab308"; ctx.beginPath(); ctx.arc(px, dropY, 8, 0, Math.PI*2); ctx.fill(); 
+                    drawLabel("RTK GPS", px, dropY-15, "#fff");
+                }
+                if (animState.p3 > 0) drawAnimatedDimLine(px, msl, px, py, "Elevation (Z)", 40, animState.p3, animState.p3);
+            }
+            else if (action === "elev_vs_slope") {
+                // NEW: Elevation vs Slope comparison
+                const px1 = w*0.35; const py1 = getProfileY(px1);
+                const px2 = w*0.55; const py2 = getProfileY(px2);
+                
+                // Common MSL Reference
+                ctx.strokeStyle = "rgba(14, 165, 233, 0.3)"; ctx.setLineDash([5,5]);
+                ctx.beginPath(); ctx.moveTo(20, msl); ctx.lineTo(w, msl); ctx.stroke(); ctx.setLineDash([]);
+                
+                // Draw Elevation drop (Absolute Height)
+                if (animState.p1 > 0) {
+                    drawAnimatedDimLine(px1, msl, px1, py1, "Absolute Elevation (Z)", -30, animState.p1, animState.p1);
+                }
+                
+                // Draw Slope Gradient
+                if (animState.p2 > 0) {
+                    ctx.globalAlpha = animState.p2;
+                    // Highlight the surface line between the two points
+                    ctx.strokeStyle = "#facc15"; ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.moveTo(px1, py1); ctx.lineTo(px2, py2); ctx.stroke();
+                    // Draw dashed horizontal line to form angle
+                    ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(px1, py1); ctx.lineTo(px2, py1); ctx.stroke(); ctx.setLineDash([]);
+                    // Draw angle arc
+                    ctx.beginPath(); ctx.arc(px1, py1, 50, 0, Math.atan2(py2-py1, px2-px1)); ctx.stroke();
+                    ctx.globalAlpha = 1;
+                }
+                
+                // Descriptive Labels
+                if (animState.p3 > 0) {
+                    ctx.globalAlpha = animState.p3;
+                    drawLabel("Vertical distance from MSL", px1 - 30, (msl + py1)/2 + 20, "#cbd5e1", "rgba(15,23,42,0.9)", "right");
+                    drawLabel("Surface Angle / Gradient", (px1+px2)/2 + 10, py1 + 20, "#facc15", "rgba(15,23,42,0.9)", "left");
+                    ctx.globalAlpha = 1;
+                }
+            }
+            else if (action === "depth") {
+                const nx = w*0.4; const ny = h*0.4 + ((nx - w*0.2)/(w*0.5)) * (h*0.4); 
+                
+                if (animState.p2 > 0) {
+                    ctx.globalAlpha = animState.p2;
+                    ctx.fillStyle="#fef08a"; ctx.strokeStyle="#ca8a04";
+                    for(let i=0; i<6; i++) { ctx.beginPath(); ctx.arc(nx-8+(i%3)*8, ny+40+Math.floor(i/3)*10, 5, 0, Math.PI*2); ctx.fill(); ctx.stroke(); }
+                    ctx.globalAlpha = 1;
+                }
+                if (animState.p3 > 0) {
+                    ctx.setLineDash([2,2]); ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(nx-80, ny); ctx.stroke(); ctx.setLineDash([]);
+                    drawAnimatedDimLine(nx-60, ny, nx-60, ny+35, "Top Depth", -10, animState.p3, animState.p3);
+                    drawAnimatedDimLine(nx-40, ny, nx-40, ny+70, "Bottom Depth", -10, animState.p3, animState.p3);
+                }
+            }
+            else if (action === "temperature") {
+                const tx = w*0.45; const ty = getProfileY(tx);
+                if (animState.p1 > 0) {
+                    ctx.save(); ctx.translate(tx, ty-15); ctx.scale(animState.p1, animState.p1);
+                    ctx.fillStyle = "#334155"; ctx.fillRect(-10, -15, 20, 30);
+                    ctx.strokeStyle = "#94a3b8"; ctx.strokeRect(-10, -15, 20, 30); ctx.restore();
+                }
+                if (animState.p2 > 0) {
+                    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(tx, ty + 60*animState.p2); ctx.strokeStyle="#ef4444"; ctx.stroke();
+                    ctx.fillStyle = "#fff"; ctx.fillRect(tx-3, ty + 60*animState.p2, 6, 15);
+                }
+                if (animState.p3 > 0) {
+                    const rad = (globalTime % 40) * animState.p3;
+                    ctx.strokeStyle = `rgba(239, 68, 68, ${(1 - rad/40) * animState.p3})`;
+                    ctx.beginPath(); ctx.arc(tx, ty+67, rad, 0, Math.PI*2); ctx.stroke();
+                }
+                if (animState.p4 > 0) {
+                    ctx.save(); ctx.translate(tx+70, ty-50); ctx.scale(animState.p4, animState.p4);
+                    ctx.fillStyle="rgba(15,23,42,0.9)"; ctx.fillRect(-50, -30, 100, 60); ctx.strokeStyle="#ef4444"; ctx.strokeRect(-50, -30, 100, 60);
+                    drawLabel("T(°C) = 29.5", 0, -15, "#ef4444", "transparent");
+                    ctx.beginPath(); ctx.moveTo(-45, 10); 
+                    for(let i=0; i<80; i+=10) ctx.lineTo(-45+i, 10 - Math.sin(i*0.1 + globalTime*0.1)*10);
+                    ctx.stroke(); ctx.restore();
+                }
+            }
+            else if (action === "vegetation") {
+                const vx = w*0.3; const vy = getProfileY(vx);
+                ctx.strokeStyle = "#2dd4bf"; ctx.lineWidth=2;
+                if (animState.p1 > 0) {
+                    ctx.beginPath(); ctx.moveTo(vx, vy-10); ctx.lineTo(vx + 40*animState.p1, vy-10 + 20*animState.p1); 
+                    ctx.lineTo(vx + 40*animState.p1 - 40*animState.p1, vy-10 + 20*animState.p1 + 20*animState.p1); 
+                    ctx.lineTo(vx - 40*animState.p1, vy-10 + 20*animState.p1); ctx.closePath(); ctx.stroke();
+                }
+                if (animState.p2 > 0) {
+                    ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(vx-20, vy); ctx.lineTo(vx-20 + 40*animState.p2, vy + 20*animState.p2); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(vx+20, vy); ctx.lineTo(vx+20 - 40*animState.p2, vy + 20*animState.p2); ctx.stroke();
+                }
+                if (animState.p3 > 0) {
+                    ctx.globalAlpha = animState.p3;
+                    drawLabel("Quadrat 1m²", vx, vy-35, "#2dd4bf");
+                    drawLabel("Coverage: 45%", vx, vy-15, "#2dd4bf");
+                    ctx.globalAlpha = 1;
+                }
+            }
+            else if (action === "shoreline") {
+                const slX = w*0.63;
+                if (animState.p1 > 0) {
+                    ctx.strokeStyle = "rgba(14, 165, 233, 0.4)"; ctx.setLineDash([5,5]);
+                    ctx.beginPath(); ctx.moveTo(slX+40, msl-50); ctx.lineTo(slX+40, h); ctx.stroke(); ctx.setLineDash([]);
+                }
+                if (animState.p2 > 0) drawAnimatedDimLine(slX+40, msl-20, slX-40, msl-20, "Δx (Erosion)", 0, animState.p2, animState.p2);
+                if (animState.p3 > 0) {
+                    ctx.globalAlpha = animState.p3 * 0.3; ctx.fillStyle = "#ef4444"; ctx.fillRect(slX-40, msl, 80, 20); ctx.globalAlpha = animState.p3; 
+                    drawLabel("Erosion Zone", slX, msl+35, "#ef4444", "rgba(15,23,42,0.8)");
+                    ctx.globalAlpha = 1;
+                }
+            }
+            else if (action === "rainfall") {
+                ctx.fillStyle = "rgba(14, 165, 233, 0.1)"; ctx.fillRect(20, 20, 150, 100); ctx.strokeStyle = "#38bdf8"; ctx.strokeRect(20, 20, 150, 100);
+                drawLabel("Precipitation (mm)", 95, 35, "#38bdf8", "transparent");
+                for(let i=0; i<5; i++) { const ht = 20 + Math.sin(globalTime*0.05 + i)*15; ctx.fillRect(30 + i*25, 120 - ht, 15, ht); }
+            }
+            else if (action === "hatchlings") {
+                const nx = w*0.4; const ny = getProfileY(nx);
+                ctx.beginPath(); ctx.arc(nx, ny, 4, 0, Math.PI*2); ctx.fillStyle="#22c55e"; ctx.fill();
+                ctx.strokeStyle = "#22c55e"; ctx.lineWidth=2;
+                const prog = (globalTime%100)/100; const pathX = nx + (w*0.7 - nx)*prog; const pathY = getProfileY(pathX);
+                ctx.setLineDash([4,4]); ctx.beginPath(); ctx.moveTo(nx, ny); ctx.lineTo(w*0.7, getProfileY(w*0.7)); ctx.stroke(); ctx.setLineDash([]);
+                ctx.beginPath(); ctx.arc(pathX, pathY, 3, 0, Math.PI*2); ctx.fill();
+                drawLabel("Emergence & Migration Vector", w*0.5, ny-30, "#22c55e");
+            }
+        }
+
+        function drawDataFlow(action, scene) {
+            const w = canvas.width; const h = canvas.height; const cx = w/2; const cy = h/2;
+            if (scene === "charts" || action === "stats") {
+                ctx.fillStyle = "#334155"; ctx.fillRect(w*0.2, h*0.8, w*0.6, 2); ctx.fillRect(w*0.2, h*0.2, 2, h*0.6);
+                const bars = [0.4, 0.7, 0.3, 0.9, 0.5]; const labels = ["Temp", "Slope", "Veg", "Depth", "Width"]; const barW = (w*0.5) / bars.length;
+                bars.forEach((val, i) => {
+                    const targetH = val * (h*0.5); const currentH = Math.min(targetH, (globalTime*2) - (i*20)); 
+                    if(currentH > 0) {
+                        ctx.fillStyle = `hsl(${160 + i*20}, 70%, 50%)`; ctx.fillRect(w*0.25 + i*barW, h*0.8 - currentH, barW*0.6, currentH);
+                        drawLabel(labels[i], w*0.25 + i*barW + barW*0.3, h*0.8 + 20, "#94a3b8", "transparent");
+                    }
+                });
+            } else {
+                if(particles.length === 0) {
+                    for(let i=0; i<(action==="matrix"?20:8); i++) particles.push({ x: Math.random()*w*0.8 + w*0.1, y: Math.random()*h*0.8 + h*0.1, vx: (Math.random()-0.5)*0.5, vy: (Math.random()-0.5)*0.5 });
+                }
+                ctx.strokeStyle = "rgba(45, 212, 191, 0.2)"; ctx.lineWidth = 1;
+                for(let i=0; i<particles.length; i++) {
+                    let p1 = particles[i]; p1.x += p1.vx; p1.y += p1.vy;
+                    if(p1.x<0||p1.x>w) p1.vx*=-1; if(p1.y<0||p1.y>h) p1.vy*=-1;
+                    for(let j=i+1; j<particles.length; j++) {
+                        let p2 = particles[j]; if(Math.hypot(p1.x-p2.x, p1.y-p2.y) < 150) { ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y); ctx.stroke(); }
+                    }
+                    ctx.fillStyle = "#14b8a6"; ctx.beginPath(); ctx.arc(p1.x, p1.y, 4, 0, Math.PI*2); ctx.fill();
+                }
+                if(action === "link_vars" || action === "compile_sample") {
+                    ctx.fillStyle = "#0f766e"; ctx.beginPath(); ctx.arc(cx, cy, 35, 0, Math.PI*2); ctx.fill();
+                    drawLabel(action==="compile_sample"?"Sample Data":"Nest DB", cx, cy, "#fff", "transparent");
+                    const packetT = (globalTime % 60) / 60;
+                    particles.forEach(p => { ctx.fillStyle = "#fbbf24"; ctx.beginPath(); ctx.arc(p.x + (cx-p.x)*packetT, p.y + (cy-p.y)*packetT, 2, 0, Math.PI*2); ctx.fill(); });
+                }
+                if(action === "matrix") {
+                    ctx.fillStyle = "rgba(15, 23, 42, 0.8)"; ctx.fillRect(cx-100, cy-50, 200, 100);
+                    ctx.fillStyle = "#2dd4bf"; ctx.font = "14px monospace";
+                    drawLabel(`[ 0.5, 23.1, 1 ]`, cx, cy-20, "#2dd4bf", "transparent");
+                    drawLabel(`[ 0.8, 19.5, 0 ]`, cx, cy, "#2dd4bf", "transparent");
+                    drawLabel(`[ 0.2, 28.9, 1 ]`, cx, cy+20, "#2dd4bf", "transparent");
+                }
+            }
+        }
+
+        function drawGISLayers(action) {
+            const w = canvas.width; const h = canvas.height; const cx = w/2; const cy = h/2;
+
+            function drawIsoPlane(yOffset, color, strokeColor, label, alpha = 1) {
+                ctx.save(); ctx.globalAlpha = alpha; ctx.translate(cx, cy + yOffset); ctx.scale(1, 0.5); ctx.rotate(Math.PI / 4); 
+                ctx.fillStyle = color; ctx.fillRect(-120, -120, 240, 240); ctx.strokeStyle = strokeColor; ctx.lineWidth = 2; ctx.strokeRect(-120, -120, 240, 240);
+                ctx.restore();
+                ctx.globalAlpha = alpha; drawLabel(label, cx + 180, cy + yOffset, "#cbd5e1", "rgba(15,23,42,0.8)", "left"); ctx.globalAlpha = 1;
+            }
+
+            const s = animState.spread; 
+            const float = Math.sin(globalTime*0.05) * 5;
+
+            if(action === "base") {
+                drawIsoPlane(0 + float, "rgba(51, 65, 85, 0.8)", "#94a3b8", "Beach Sectors");
+            } else if (action === "secondary") {
+                drawIsoPlane(30 * s + float, "rgba(51, 65, 85, 0.4)", "#94a3b8", "Base Sectors");
+                drawIsoPlane(-20 * s + float, "rgba(14, 165, 233, 0.6)", "#38bdf8", "Temp & Rainfall");
+                drawIsoPlane(-70 * s + float, "rgba(34, 197, 94, 0.6)", "#4ade80", "Historical Nests");
+            } else if (action === "risk") {
+                drawIsoPlane(50 * s + float, "rgba(51, 65, 85, 0.2)", "#475569", "Base Variables");
+                ctx.save(); ctx.translate(cx, cy - 50*s + float); ctx.scale(1, 0.5); ctx.rotate(Math.PI / 4);
+                const grad = ctx.createLinearGradient(-120, -120, 120, 120);
+                grad.addColorStop(0, `rgba(239, 68, 68, ${0.8 * animState.p1})`); 
+                grad.addColorStop(0.5, `rgba(234, 179, 8, ${0.8 * animState.p1})`); 
+                grad.addColorStop(1, `rgba(34, 197, 94, ${0.8 * animState.p1})`);
+                ctx.fillStyle = grad; ctx.fillRect(-120, -120, 240, 240); ctx.strokeStyle = `rgba(255,255,255,${animState.p1})`; ctx.strokeRect(-120, -120, 240, 240);
+                ctx.restore();
+                ctx.globalAlpha = animState.p1; drawLabel("AI Habitat Risk Layer", cx + 180, cy - 50*s, "#fff", "rgba(15,23,42,0.8)", "left"); ctx.globalAlpha = 1;
+            }
+        }
+
+        function drawAINet(action) {
+            const w = canvas.width; const h = canvas.height;
+            const layers = [4, 6, 6, 3]; const startX = w*0.2; const gapX = (w*0.6) / 3;
+            
+            if (animState.p2 > 0) {
+                ctx.lineWidth = 1;
+                for(let l=0; l<layers.length-1; l++) {
+                    const x1 = startX + l*gapX; const x2 = startX + (l+1)*gapX;
+                    const startY1 = h/2 - (layers[l]*40)/2; const startY2 = h/2 - (layers[l+1]*40)/2;
+                    for(let i=0; i<layers[l]; i++) {
+                        for(let j=0; j<layers[l+1]; j++) {
+                            const y1 = startY1 + i*40 + 20; const y2 = startY2 + j*40 + 20;
+                            const isActive = Math.random() > 0.9 && action === "train";
+                            ctx.strokeStyle = isActive ? "#2dd4bf" : `rgba(148, 163, 184, ${0.2 * animState.p2})`;
+                            
+                            ctx.beginPath(); ctx.moveTo(x1, y1); 
+                            ctx.lineTo(x1 + (x2-x1)*animState.p2, y1 + (y2-y1)*animState.p2); ctx.stroke();
+                            
+                            if(action === "train" && Math.random()>0.98) particles.push({x1:x1, y1:y1, x2:x2, y2:y2, prog:0});
+                        }
+                    }
+                }
+            }
+
+            ctx.fillStyle = "#fff";
+            for(let i=particles.length-1; i>=0; i--) {
+                let p = particles[i]; p.prog += 0.05;
+                ctx.beginPath(); ctx.arc(p.x1 + (p.x2 - p.x1)*p.prog, p.y1 + (p.y2 - p.y1)*p.prog, 2, 0, Math.PI*2); ctx.fill();
+                if(p.prog >= 1) particles.splice(i, 1);
+            }
+
+            if (animState.p1 > 0) {
+                for(let l=0; l<layers.length; l++) {
+                    const x = startX + l*gapX; const startY = h/2 - (layers[l]*40)/2;
+                    for(let i=0; i<layers[l]; i++) {
+                        const y = startY + i*40 + 20;
+                        ctx.globalAlpha = animState.p1;
+                        ctx.fillStyle = "#1e293b"; ctx.beginPath(); ctx.arc(x, y, 10 * animState.p1, 0, Math.PI*2); ctx.fill();
+                        ctx.strokeStyle = l === layers.length-1 ? (i===0?"#ef4444":i===1?"#eab308":"#22c55e") : "#0ea5e9";
+                        ctx.lineWidth = 2; ctx.stroke();
+                        ctx.globalAlpha = 1;
+                    }
+                }
+            }
+
+            if(action === "validate" && animState.p3 > 0) {
+                ctx.globalAlpha = animState.p3; 
+                ctx.fillStyle = "#2dd4bf"; ctx.font = "bold 30px sans-serif"; ctx.textAlign="center";
+                ctx.fillText(`Accuracy: 85%`, w*0.5, h*0.2); 
+                ctx.globalAlpha = 1;
+            }
+        }
+
+        function drawTech(action) {
+            const w = canvas.width; const h = canvas.height; const cx = w/2; const cy = h/2;
+            if(action === "api") {
+                ctx.fillStyle = "#1e293b"; ctx.strokeStyle = "#475569"; ctx.lineWidth=2;
+                ctx.fillRect(cx-200, cy-40, 80, 80); ctx.strokeRect(cx-200, cy-40, 80, 80);
+                ctx.fillRect(cx-40, cy-60, 80, 120); ctx.strokeRect(cx-40, cy-60, 80, 120); 
+                ctx.fillRect(cx+120, cy-40, 80, 80); ctx.strokeRect(cx+120, cy-40, 80, 80); 
+                drawLabel("Web App", cx-160, cy+60, "#cbd5e1", "transparent"); 
+                drawLabel("Python API", cx, cy+80, "#cbd5e1", "transparent"); 
+                drawLabel("AI Model", cx+160, cy+60, "#cbd5e1", "transparent");
+                const flow = (globalTime*2) % 120; ctx.fillStyle = "#2dd4bf";
+                if(flow < 60) { ctx.beginPath(); ctx.arc(cx-120 + flow, cy, 4, 0, Math.PI*2); ctx.fill(); }
+                else { ctx.beginPath(); ctx.arc(cx+40 + (flow-60), cy, 4, 0, Math.PI*2); ctx.fill(); }
+            }
+            else if (action === "dashboard" || action === "testing" || action === "deployment") {
+                ctx.fillStyle = "#0f172a"; ctx.fillRect(cx-200, cy-120, 400, 240);
+                ctx.strokeStyle = "#334155"; ctx.lineWidth=4; ctx.strokeRect(cx-200, cy-120, 400, 240); 
+                ctx.fillStyle = "#1e293b"; ctx.fillRect(cx-200, cy-120, 400, 30); 
+                ctx.fillStyle = "#ef4444"; ctx.beginPath(); ctx.arc(cx-180, cy-105, 5, 0, Math.PI*2); ctx.fill(); 
+                ctx.fillStyle = "#1e293b"; ctx.fillRect(cx-180, cy-70, 150, 100); 
+                ctx.fillStyle = "#14b8a6"; ctx.fillRect(cx-10, cy-70, 180, 20); 
+                ctx.fillStyle = "#eab308"; ctx.fillRect(cx-10, cy-40, 140, 20); 
+                ctx.fillStyle = "#ef4444"; ctx.fillRect(cx-10, cy-10, 80, 20); 
+
+                if(action === "testing") {
+                    ctx.fillStyle = "rgba(15, 23, 42, 0.8)"; ctx.fillRect(cx-200, cy-120, 400, 240); 
+                    const tests = ["Unit Tests", "API Load", "Model Acc", "Security"];
+                    const count = Math.min(4, Math.floor(globalTime/20));
+                    for(let i=0; i<count; i++) drawLabel(`✓ ${tests[i]} Passed`, cx-80, cy-40 + i*30, "#22c55e", "transparent", "left");
+                }
+                if(action === "deployment") {
+                    ctx.fillStyle = "#fff"; ctx.font="30px sans-serif"; ctx.textAlign="center"; ctx.fillText("👨‍🔬 👩‍💻 🐢", cx, cy+80);
+                    drawLabel("40% Hatchling Survival Increase", cx, cy+120, "#2dd4bf", "rgba(15,23,42,0.9)");
+                }
+            } else if (action === "3d") {
+                ctx.save(); ctx.translate(cx, cy); const a = globalTime * 0.02; ctx.strokeStyle = "#0ea5e9"; ctx.lineWidth = 2;
+                const pts = [ [-50,-50,-50], [50,-50,-50], [50,50,-50], [-50,50,-50], [-50,-50,50], [50,-50,50], [50,50,50], [-50,50,50] ];
+                const proj = pts.map(p => {
+                    let x = p[0]*Math.cos(a) - p[2]*Math.sin(a); let z = p[0]*Math.sin(a) + p[2]*Math.cos(a);
+                    let y = p[1]; let f = 200 / (200 + z); return [x*f, y*f];
+                });
+                ctx.beginPath();
+                ctx.moveTo(...proj[0]); ctx.lineTo(...proj[1]); ctx.lineTo(...proj[2]); ctx.lineTo(...proj[3]); ctx.closePath();
+                ctx.moveTo(...proj[4]); ctx.lineTo(...proj[5]); ctx.lineTo(...proj[6]); ctx.lineTo(...proj[7]); ctx.closePath();
+                for(let i=0; i<4; i++) { ctx.moveTo(...proj[i]); ctx.lineTo(...proj[i+4]); }
+                ctx.stroke(); ctx.restore();
+            }
+        }
+
+        // --- INIT ---
+        updateUI();
+        requestAnimationFrame(drawLoop);
+    </script>
+</body>
+</html>
