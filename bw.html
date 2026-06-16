@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Beach Slope Calculator</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: #fff;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            max-width: 600px;
+            width: 100%;
+        }
+        h2 { margin-top: 0; color: #1a5f7a; }
+        .controls { display: flex; flex-direction: column; gap: 1rem; margin-bottom: 1.5rem; }
+        .control-group { display: flex; flex-direction: column; }
+        label { font-weight: bold; margin-bottom: 0.5rem; }
+        input[type="range"] { width: 100%; }
+        canvas {
+            background: #e8f4f8;
+            border: 1px solid #bce0ec;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto 1.5rem auto;
+        }
+        .results {
+            display: flex;
+            justify-content: space-between;
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            border-left: 4px solid #1a5f7a;
+            margin-bottom: 1rem;
+        }
+        .result-item { display: flex; flex-direction: column; align-items: center; }
+        .result-value { font-size: 1.5rem; font-weight: bold; color: #1a5f7a; }
+        .result-label { font-size: 0.875rem; color: #666; }
+        
+        /* New styling for the biological interpretation box */
+        .bio-interpretation {
+            padding: 1rem;
+            border-radius: 8px;
+            background: #e8f4f8;
+            border-left: 4px solid #1a5f7a;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            transition: all 0.3s ease;
+        }
+        .bio-title {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Beach Slope Visualizer</h2>
+    
+    <div class="controls">
+        <div class="control-group">
+            <label for="runInput">Horizontal Distance (Run): <span id="runVal">5.0</span> m</label>
+            <input type="range" id="runInput" min="2.0" max="10.0" step="0.1" value="5.0">
+        </div>
+        <div class="control-group">
+            <label for="riseInput">Vertical Elevation (Rise): <span id="riseVal">0.5</span> m</label>
+            <input type="range" id="riseInput" min="0.1" max="3.0" step="0.1" value="0.5">
+        </div>
+    </div>
+
+    <canvas id="slopeCanvas" width="500" height="250"></canvas>
+
+    <div class="results">
+        <div class="result-item">
+            <span class="result-value" id="resRatio">0.10</span>
+            <span class="result-label">Slope Ratio</span>
+        </div>
+        <div class="result-item">
+            <span class="result-value" id="resPercent">10.0%</span>
+            <span class="result-label">Slope Percentage</span>
+        </div>
+        <div class="result-item">
+            <span class="result-value" id="resAngle">5.71°</span>
+            <span class="result-label">Angle</span>
+        </div>
+    </div>
+
+    <div class="bio-interpretation" id="bioText">
+        </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('slopeCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const runInput = document.getElementById('runInput');
+    const riseInput = document.getElementById('riseInput');
+    const runVal = document.getElementById('runVal');
+    const riseVal = document.getElementById('riseVal');
+    
+    const resRatio = document.getElementById('resRatio');
+    const resPercent = document.getElementById('resPercent');
+    const resAngle = document.getElementById('resAngle');
+    const bioText = document.getElementById('bioText');
+
+    function draw() {
+        const run = parseFloat(runInput.value);
+        const rise = parseFloat(riseInput.value);
+        
+        // Update labels
+        runVal.textContent = run.toFixed(1);
+        riseVal.textContent = rise.toFixed(1);
+        
+        // Math calculations
+        const ratio = rise / run;
+        const percent = ratio * 100;
+        const angle = Math.atan(ratio) * (180 / Math.PI);
+        
+        // Update results
+        resRatio.textContent = ratio.toFixed(2);
+        resPercent.textContent = percent.toFixed(1) + '%';
+        resAngle.textContent = angle.toFixed(2) + '°';
+
+        // --- NEW: Biological Interpretation Logic ---
+        if (angle < 3.0) {
+            // Flat Beach - Inundation Risk
+            bioText.innerHTML = "<span class='bio-title text-red'>High Risk: Flat Beach Profile (< 3°)</span>While effortless to climb, a flat profile offers minimal vertical protection. Storm surges and high tides can wash far inland, exposing the nest to high inundation risk, thermal shock, and embryonic asphyxiation.";
+            bioText.style.borderLeftColor = "#ef4444"; // Red warning
+            bioText.style.backgroundColor = "#fee2e2";
+            bioText.style.color = "#991b1b";
+        } else if (angle >= 10.0) {
+            // Steep Beach - Exhaustion / Erosion Risk
+            bioText.innerHTML = "<span class='bio-title'>High Risk: Steep Beach Profile (≥ 10°)</span>This steep incline requires immense biomechanical exertion, highly increasing the likelihood of a 'false crawl'. Such severe slopes are also primary indicators of active coastal erosion and scarping, putting nests at risk of physical collapse.";
+            bioText.style.borderLeftColor = "#ef4444"; // Red warning
+            bioText.style.backgroundColor = "#fee2e2";
+            bioText.style.color = "#991b1b";
+        } else {
+            // Optimal Zone
+            bioText.innerHTML = "<span class='bio-title'>Optimal Habitat: The Safe Zone (3° - 9.9°)</span>This gradient represents the ideal nesting condition. It is gentle enough for the mother to successfully navigate without severe exhaustion, while providing sufficient vertical elevation to protect incubating eggs from standard high-tide flooding.";
+            bioText.style.borderLeftColor = "#22c55e"; // Green safe
+            bioText.style.backgroundColor = "#dcfce7";
+            bioText.style.color = "#166534";
+        }
+
+        // Clear canvas
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // Dynamic scaling for the drawing
+        const padding = 50;
+        const drawWidth = canvas.width - (padding * 2);
+        const drawHeight = canvas.height - (padding * 2);
+        
+        // Calculate proportional lengths
+        const maxRun = 10.0;
+        const maxRise = 3.0;
+        
+        const scaledRun = (run / maxRun) * drawWidth;
+        const scaledRise = (rise / maxRise) * drawHeight;
+        
+        // Origin points (bottom left)
+        const startX = padding;
+        const startY = canvas.height - padding;
+        
+        const endX = startX + scaledRun;
+        const endY = startY - scaledRise;
+
+        // Draw Triangle
+        ctx.beginPath();
+        ctx.moveTo(startX, startY); // Bottom left
+        ctx.lineTo(endX, startY);   // Bottom right
+        ctx.lineTo(endX, endY);     // Top right
+        ctx.closePath();
+        
+        // Fill sand color
+        ctx.fillStyle = '#e6cda3';
+        ctx.fill();
+        ctx.strokeStyle = '#cda971';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Draw labels on canvas
+        ctx.fillStyle = '#333';
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        
+        // Run label
+        ctx.fillText(`Run: ${run.toFixed(1)}m`, startX + (scaledRun / 2), startY + 20);
+        
+        // Rise label
+        ctx.textAlign = 'left';
+        ctx.fillText(`Rise: ${rise.toFixed(1)}m`, endX + 10, startY - (scaledRise / 2));
+    }
+
+    // Event listeners
+    runInput.addEventListener('input', draw);
+    riseInput.addEventListener('input', draw);
+
+    // Initial draw
+    draw();
+</script>
+</body>
+</html>
