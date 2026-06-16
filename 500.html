@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sample Size Justification - PhD Defense</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #0f172a; color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; margin: 0; height: 100vh; display: flex; }
+        .sidebar { width: 40%; background: #1e293b; border-right: 1px solid #334155; padding: 2rem; display: flex; flex-direction: column; }
+        .canvas-container { width: 60%; position: relative; background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%); }
+        canvas { display: block; width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        
+        .step-card { padding: 1.5rem; border-radius: 0.75rem; border: 1px solid transparent; margin-bottom: 1rem; transition: all 0.4s ease; opacity: 0.4; cursor: pointer; }
+        .step-card.active { background: #0f172a; border-color: #2dd4bf; opacity: 1; box-shadow: 0 10px 25px rgba(0,0,0,0.3); transform: translateX(10px); }
+        .step-card h3 { color: #2dd4bf; font-weight: bold; margin-bottom: 0.5rem; display: flex; align-items: center; }
+        .step-card p { font-size: 0.875rem; color: #94a3b8; line-height: 1.5; margin: 0; }
+        .step-card .highlight { color: #f8fafc; font-weight: 600; }
+
+        .controls { margin-top: auto; display: flex; justify-content: space-between; gap: 1rem; }
+        button { flex: 1; padding: 0.75rem; border-radius: 0.5rem; font-weight: bold; transition: all 0.2s; border: none; cursor: pointer; }
+        .btn-prev { background: #334155; color: #cbd5e1; }
+        .btn-prev:hover:not(:disabled) { background: #475569; }
+        .btn-next { background: #0d9488; color: #fff; box-shadow: 0 4px 10px rgba(13, 148, 136, 0.3); }
+        .btn-next:hover:not(:disabled) { background: #14b8a6; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2 class="text-2xl font-bold mb-6 text-white border-b border-slate-700 pb-4">
+            <i class="fa-solid fa-bullseye text-teal-400 mr-2"></i> Justifying the 500-Nest Sample
+        </h2>
+
+        <div id="step-0" class="step-card active">
+            <h3><i class="fa-solid fa-network-wired mr-2"></i> 1. Machine Learning Split</h3>
+            <p>Neural networks require sufficient data to prevent overfitting. A <span class="highlight">80/20 split</span> yields 400 training nests and 100 validation nests, providing a statistically significant baseline to evaluate our 85% accuracy goal.</p>
+        </div>
+
+        <div id="step-1" class="step-card">
+            <h3><i class="fa-solid fa-chart-bar mr-2"></i> 2. Statistical Power (EPV)</h3>
+            <p>Predictive modeling requires 20-50 "Events Per Variable" (EPV) for stability. <span class="highlight">9 variables × 50 events = 450</span>. Targeting 500 gives an excellent 50-nest safety margin for field anomalies.</p>
+        </div>
+
+        <div id="step-2" class="step-card">
+            <h3><i class="fa-solid fa-map-location-dot mr-2"></i> 3. Spatio-Temporal Grid</h3>
+            <p>Across <span class="highlight">5 rookeries and 2 monsoon seasons</span>, 500 nests divide into ~50 nests per spatio-temporal block. This is the minimum threshold required to perform rigorous spatial block cross-validation.</p>
+        </div>
+
+        <div id="step-3" class="step-card">
+            <h3><i class="fa-solid fa-leaf mr-2"></i> 4. Ecological Feasibility</h3>
+            <p>For an endangered species, 10,000 nests is practically impossible for a single researcher. <span class="highlight">500 is the "Sweet Spot"</span>—ethically observable, accurately measurable, and safely achievable within 24 months.</p>
+        </div>
+
+        <div class="controls">
+            <button id="btn-prev" class="btn-prev" disabled><i class="fa-solid fa-chevron-left mr-1"></i> Previous</button>
+            <button id="btn-next" class="btn-next">Next Dimension <i class="fa-solid fa-chevron-right ml-1"></i></button>
+        </div>
+    </div>
+
+    <div class="canvas-container">
+        <canvas id="animCanvas"></canvas>
+    </div>
+
+<script>
+    const canvas = document.getElementById('animCanvas');
+    const ctx = canvas.getContext('2d');
+    let w, h;
+    
+    // Animation State Object for GSAP to tween
+    const animState = {
+        splitProgress: 0,
+        barHeight: 0,
+        gridAlpha: 0,
+        scatterProgress: 0,
+        gaugeNeedle: 0
+    };
+
+    let currentStep = 0;
+    
+    // Nests data (500 points)
+    const nests = Array.from({length: 500}, (_, i) => {
+        return {
+            id: i,
+            // Base grid positions
+            gridX: (i % 25) / 24, 
+            gridY: Math.floor(i / 25) / 19,
+            // Random scatter targets for Map View
+            mapGroup: i % 5,
+            offsetX: (Math.random() - 0.5) * 0.15,
+            offsetY: (Math.random() - 0.5) * 0.15
+        };
+    });
+
+    function resize() {
+        w = canvas.parentElement.clientWidth;
+        h = canvas.parentElement.clientHeight;
+        canvas.width = w;
+        canvas.height = h;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Custom Label Drawer
+    function drawLabel(text, x, y, color = "#fff", bgColor = "rgba(15, 23, 42, 0.8)") {
+        ctx.save(); ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        const metrics = ctx.measureText(text); const pad = 8;
+        ctx.fillStyle = bgColor; ctx.beginPath(); ctx.roundRect(x - (metrics.width/2) - pad, y - 12, metrics.width + pad*2, 24, 4); ctx.fill();
+        ctx.fillStyle = color; ctx.fillText(text, x, y); ctx.restore();
+    }
+
+    // --- RENDER PIPELINE ---
+    function render() {
+        ctx.clearRect(0, 0, w, h);
+
+        if (currentStep === 0) renderMLSplit();
+        else if (currentStep === 1) renderEPV();
+        else if (currentStep === 2) renderSpatioTemporal();
+        else if (currentStep === 3) renderFeasibility();
+
+        requestAnimationFrame(render);
+    }
+
+    // Scene 1: 80/20 Split
+    function renderMLSplit() {
+        const paddingX = w * 0.2; const paddingY = h * 0.2;
+        const usableW = w - paddingX * 2; const usableH = h - paddingY * 2;
+        
+        ctx.globalAlpha = 1 - animState.barHeight; // Fade out when moving to next scene
+        
+        nests.forEach((n) => {
+            const x = paddingX + (n.gridX * usableW);
+            const y = paddingY + (n.gridY * usableH);
+            
+            // 80/20 Split Logic
+            const isTest = n.id >= 400;
+            const threshold = animState.splitProgress * 500;
+            
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI*2);
+            
+            if (n.id < threshold) {
+                ctx.fillStyle = isTest ? '#facc15' : '#2dd4bf'; // Yellow Test, Teal Train
+                ctx.shadowColor = isTest ? '#facc15' : '#2dd4bf';
+                ctx.shadowBlur = 5;
+            } else {
+                ctx.fillStyle = '#334155';
+                ctx.shadowBlur = 0;
+            }
+            ctx.fill();
+        });
+
+        if (animState.splitProgress > 0.8) {
+            ctx.globalAlpha = (animState.splitProgress - 0.8) * 5;
+            drawLabel("Training Data (80% = 400 Nests)", w/2, h*0.12, "#2dd4bf");
+            drawLabel("Testing/Validation Data (20% = 100 Nests)", w/2, h*0.88, "#facc15");
+        }
+        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0;
+    }
+
+    // Scene 2: Events Per Variable
+    function renderEPV() {
+        const p = animState.barHeight;
+        if (p <= 0) return;
+
+        const startX = w * 0.15; const endX = w * 0.85;
+        const bottomY = h * 0.8; const maxH = h * 0.5;
+        const gap = (endX - startX) / 9;
+
+        const vars = ["Width", "Slope", "Elev", "Shore", "Veg", "Temp", "Rain", "Depth", "Loc"];
+        
+        ctx.globalAlpha = p;
+        
+        // Target Line (450)
+        ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.setLineDash([5,5]);
+        ctx.beginPath(); ctx.moveTo(startX - 20, bottomY - maxH); ctx.lineTo(endX, bottomY - maxH); ctx.stroke();
+        drawLabel("Statistical Minimum: 50 Nests/Var (450 Total)", startX + 150, bottomY - maxH - 20, "#94a3b8");
+        ctx.setLineDash([]);
+
+        // Bars
+        for(let i=0; i<9; i++) {
+            const x = startX + (i * gap) + (gap/2);
+            const currentH = maxH * p;
+            
+            // Base requirement
+            ctx.fillStyle = "#0ea5e9";
+            ctx.fillRect(x - 15, bottomY - currentH, 30, currentH);
+            
+            // Safety Buffer (Top 10%)
+            if (p > 0.9) {
+                const bufferH = (maxH * 0.11) * ((p - 0.9) * 10);
+                ctx.fillStyle = "#22c55e"; // Green safety margin
+                ctx.fillRect(x - 15, bottomY - maxH - bufferH, 30, bufferH);
+            }
+
+            // Labels
+            ctx.fillStyle = "#cbd5e1"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText(vars[i], x, bottomY + 20);
+        }
+        
+        if (p > 0.9) drawLabel("+ 50 Nest Safety Margin (Total 500)", endX - 100, bottomY - maxH - 40, "#22c55e", "transparent");
+        ctx.globalAlpha = 1;
+    }
+
+    // Scene 3: Spatio-Temporal Grid
+    function renderSpatioTemporal() {
+        const p = animState.gridAlpha;
+        const sp = animState.scatterProgress;
+        if (p <= 0) return;
+
+        const boxes = [
+            { x: w*0.2, y: h*0.3 }, { x: w*0.5, y: h*0.25 }, { x: w*0.8, y: h*0.3 },
+            { x: w*0.35, y: h*0.65 }, { x: w*0.65, y: h*0.65 }
+        ];
+
+        ctx.globalAlpha = p;
+        
+        // Draw 5 Rookery Zones
+        boxes.forEach((b, i) => {
+            ctx.strokeStyle = `rgba(45, 212, 191, ${p * 0.5})`; ctx.lineWidth = 2;
+            ctx.strokeRect(b.x - 70, b.y - 70, 140, 140);
+            ctx.fillStyle = `rgba(45, 212, 191, 0.05)`; ctx.fillRect(b.x - 70, b.y - 70, 140, 140);
+            drawLabel(`Rookery ${i+1}`, b.x, b.y - 85, "#2dd4bf", "transparent");
+            
+            // Divide seasons
+            if (sp > 0.8) {
+                ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.setLineDash([4,4]);
+                ctx.beginPath(); ctx.moveTo(b.x - 70, b.y); ctx.lineTo(b.x + 70, b.y); ctx.stroke(); ctx.setLineDash([]);
+                ctx.fillStyle = "#94a3b8"; ctx.font = "10px sans-serif";
+                ctx.fillText("Monsoon", b.x, b.y - 5);
+                ctx.fillText("Non-Monsoon", b.x, b.y + 60);
+            }
+        });
+
+        // Scatter Dots
+        ctx.fillStyle = "#38bdf8";
+        nests.forEach((n) => {
+            // Origin (center cluster) to Target Box
+            const origX = w/2 + (n.gridX-0.5)*100;
+            const origY = h/2 + (n.gridY-0.5)*100;
+            const targetBox = boxes[n.mapGroup];
+            
+            // Season split logic
+            let finalY = targetBox.y + (n.offsetY * 300);
+            if (sp > 0.8) {
+                const isMonsoon = n.id % 2 === 0;
+                finalY = targetBox.y + (isMonsoon ? -30 : 30) + (Math.random()*15 - 7);
+            }
+
+            const currX = origX + (targetBox.x + (n.offsetX * 300) - origX) * sp;
+            const currY = origY + (finalY - origY) * sp;
+
+            ctx.beginPath(); ctx.arc(currX, currY, 2.5, 0, Math.PI*2); ctx.fill();
+        });
+
+        if (sp > 0.9) drawLabel("Result: ~50 Nests per spatio-temporal block", w/2, h*0.9, "#facc15");
+        ctx.globalAlpha = 1;
+    }
+
+    // Scene 4: Feasibility Gauge
+    function renderFeasibility() {
+        const p = animState.gaugeNeedle;
+        if (p <= 0) return;
+
+        const cx = w/2; const cy = h*0.6; const r = 180;
+        ctx.globalAlpha = p;
+
+        // Dial Arch
+        ctx.lineWidth = 30;
+        
+        // Infeasible (Red)
+        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, Math.PI * 1.3); ctx.strokeStyle = "#ef4444"; ctx.stroke();
+        // Sweet Spot (Green)
+        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI * 1.3, Math.PI * 1.7); ctx.strokeStyle = "#22c55e"; ctx.stroke();
+        // Statistically Weak (Red)
+        ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI * 1.7, Math.PI * 2); ctx.strokeStyle = "#ef4444"; ctx.stroke();
+
+        ctx.lineWidth = 1;
+        drawLabel("10,000", cx - r*0.9, cy - r*0.4, "#ef4444", "transparent"); // Impossible
+        drawLabel("500", cx, cy - r - 25, "#22c55e", "transparent"); // Sweet Spot
+        drawLabel("50", cx + r*0.9, cy - r*0.4, "#ef4444", "transparent"); // Too little
+
+        // Needle
+        const targetAngle = Math.PI * 1.5; // Top center (500)
+        const currentAngle = Math.PI + (targetAngle - Math.PI) * p;
+
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(currentAngle);
+        
+        ctx.fillStyle = "#fff";
+        ctx.beginPath(); ctx.moveTo(-5, 0); ctx.lineTo(5, 0); ctx.lineTo(0, -r + 10); ctx.fill();
+        ctx.fillStyle = "#334155";
+        ctx.beginPath(); ctx.arc(0,0, 10, 0, Math.PI*2); ctx.fill();
+        ctx.restore();
+
+        if (p > 0.9) {
+            drawLabel("Ecological 'Sweet Spot'", cx, cy + 40, "#2dd4bf", "rgba(15,23,42,0)");
+            drawLabel("Ethically observable, technically measurable by 1 researcher.", cx, cy + 70, "#cbd5e1", "rgba(15,23,42,0)");
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // --- NAVIGATION LOGIC ---
+    const btnNext = document.getElementById('btn-next');
+    const btnPrev = document.getElementById('btn-prev');
+
+    function updateCards() {
+        document.querySelectorAll('.step-card').forEach((el, i) => {
+            if (i === currentStep) el.classList.add('active');
+            else el.classList.remove('active');
+        });
+        btnPrev.disabled = currentStep === 0;
+        btnNext.disabled = currentStep === 3;
+    }
+
+    function triggerAnimation(step) {
+        // Reset all states
+        gsap.killTweensOf(animState);
+        
+        if (step === 0) {
+            animState.barHeight = 0; animState.gridAlpha = 0; animState.gaugeNeedle = 0;
+            gsap.to(animState, {splitProgress: 1, duration: 2, ease: "power2.inOut"});
+        } else if (step === 1) {
+            animState.gridAlpha = 0; animState.gaugeNeedle = 0;
+            gsap.to(animState, {barHeight: 1, duration: 1.5, ease: "back.out(1.2)"});
+        } else if (step === 2) {
+            animState.barHeight = 0; animState.gaugeNeedle = 0;
+            gsap.to(animState, {gridAlpha: 1, duration: 1});
+            animState.scatterProgress = 0;
+            gsap.to(animState, {scatterProgress: 1, duration: 2, ease: "power3.inOut", delay: 0.5});
+        } else if (step === 3) {
+            animState.gridAlpha = 0; animState.barHeight = 0;
+            animState.gaugeNeedle = 0;
+            gsap.to(animState, {gaugeNeedle: 1, duration: 2, ease: "elastic.out(1, 0.7)"});
+        }
+    }
+
+    btnNext.addEventListener('click', () => { if(currentStep < 3) { currentStep++; updateCards(); triggerAnimation(currentStep); }});
+    btnPrev.addEventListener('click', () => { if(currentStep > 0) { currentStep--; updateCards(); triggerAnimation(currentStep); }});
+
+    // Start
+    requestAnimationFrame(render);
+    triggerAnimation(0);
+
+</script>
+</body>
+</html>
